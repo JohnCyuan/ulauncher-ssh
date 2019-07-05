@@ -1,17 +1,18 @@
-from ulauncher.api.client.Extension import Extension
-from ulauncher.api.client.EventListener import EventListener
-from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent, PreferencesUpdateEvent, PreferencesEvent
-from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
-from ulauncher.api.shared.action.ExtensionCustomAction import ExtensionCustomAction
-from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
-from os.path import expanduser
 import logging
-import subprocess
 import os
 import re
-import shlex
+import subprocess
+from os.path import expanduser
+
+from ulauncher.api.client.EventListener import EventListener
+from ulauncher.api.client.Extension import Extension
+from ulauncher.api.shared.action.ExtensionCustomAction import ExtensionCustomAction
+from ulauncher.api.shared.action.RenderResultListAction import RenderResultListAction
+from ulauncher.api.shared.event import KeywordQueryEvent, ItemEnterEvent, PreferencesUpdateEvent, PreferencesEvent
+from ulauncher.api.shared.item.ExtensionResultItem import ExtensionResultItem
 
 logger = logging.getLogger(__name__)
+
 
 class SshExtension(Extension):
 
@@ -64,13 +65,16 @@ class SshExtension(Extension):
         cmd = self.terminal_cmd.replace("%SHELL", shell).replace("%CONN", addr)
 
         if self.terminal:
+            # ipdb.set_trace()
             subprocess.Popen([self.terminal, self.terminal_arg, cmd], cwd=home)
+
 
 class ItemEnterEventListener(EventListener):
 
     def on_event(self, event, extension):
         data = event.get_data()
         extension.launch_terminal(data)
+
 
 class PreferencesUpdateEventListener(EventListener):
 
@@ -83,12 +87,14 @@ class PreferencesUpdateEventListener(EventListener):
         elif event.id == "ssh_launcher_terminal_cmd":
             extension.terminal_cmd = event.new_value
 
+
 class PreferencesEventListener(EventListener):
 
     def on_event(self, event, extension):
         extension.terminal = event.preferences["ssh_launcher_terminal"]
         extension.terminal_arg = event.preferences["ssh_launcher_terminal_arg"]
         extension.terminal_cmd = event.preferences["ssh_launcher_terminal_cmd"]
+
 
 class KeywordQueryEventListener(EventListener):
 
@@ -100,24 +106,29 @@ class KeywordQueryEventListener(EventListener):
         hosts += extension.parse_known_hosts()
 
         hosts.sort()
-
-        if arg is not None and len(arg) > 0:
-            hosts = filter(lambda x: arg in x, hosts)
-
-        for host in hosts:
-            items.append(ExtensionResultItem(icon=icon,
-                                            name=host,
-                                            description="Connect to '{}' with SSH".format(host),
-                                            on_enter=ExtensionCustomAction(host, keep_app_open=False)))
-
-        # If there are no results, let the user connect to the specified server.
-        if len(items) <= 0:
-            items.append(ExtensionResultItem(icon=icon,
-                                            name=arg,
-                                            description="Connect to {} with SSH".format(arg),
-                                            on_enter=ExtensionCustomAction(arg, keep_app_open=False)))
+        if arg is not None:
+            index = arg.find('@', 1)
+            if index <= 0:
+                return
+            query = arg[index + 1:len(arg) - 1]
+            if query is not None and len(query) > 0:
+                # ipdb.set_trace()
+                hosts = filter(lambda x: query in x, hosts)
+            for host in hosts:
+                items.append(ExtensionResultItem(icon=icon,
+                                                 name=host,
+                                                 description="Connect to '{}' with SSH".format(host),
+                                                 on_enter=ExtensionCustomAction(arg + host, keep_app_open=False)))
+                # If there are no results, let the user connect to the specified server.
+            if len(items) <= 0:
+                items.append(ExtensionResultItem(icon=icon,
+                                                 name=arg,
+                                                 description="Connect to {} with SSH".format(arg),
+                                                 on_enter=ExtensionCustomAction(arg.replace(query, ''),
+                                                                                keep_app_open=False)))
 
         return RenderResultListAction(items)
+
 
 if __name__ == '__main__':
     SshExtension().run()
