@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import subprocess
+import ipdb
 from os.path import expanduser
 
 from ulauncher.api.client.EventListener import EventListener
@@ -111,6 +112,7 @@ class KeywordQueryEventListener(EventListener):
             if index <= 0:
                 return
             query = arg[index + 1:len(arg) - 1]
+            cmd_arg = arg[0: index+1]
             if query is not None and len(query) > 0:
                 # ipdb.set_trace()
                 hosts = filter(lambda x: query in x, hosts)
@@ -118,13 +120,14 @@ class KeywordQueryEventListener(EventListener):
                 items.append(ExtensionResultItem(icon=icon,
                                                  name=host,
                                                  description="Connect to '{}' with SSH".format(host),
-                                                 on_enter=ExtensionCustomAction(arg + host, keep_app_open=False)))
+                                                 on_enter=ExtensionCustomAction(cmd_arg + host,
+                                                                                keep_app_open=False)))
                 # If there are no results, let the user connect to the specified server.
             if len(items) <= 0:
                 items.append(ExtensionResultItem(icon=icon,
                                                  name=arg,
                                                  description="Connect to {} with SSH".format(arg),
-                                                 on_enter=ExtensionCustomAction(arg.replace(query, ''),
+                                                 on_enter=ExtensionCustomAction(arg,
                                                                                 keep_app_open=False)))
 
         return RenderResultListAction(items)
