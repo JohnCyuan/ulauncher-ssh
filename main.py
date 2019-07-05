@@ -2,7 +2,6 @@ import logging
 import os
 import re
 import subprocess
-import ipdb
 from os.path import expanduser
 
 from ulauncher.api.client.EventListener import EventListener
@@ -58,12 +57,12 @@ class SshExtension(Extension):
 
         return hosts
 
-    def launch_terminal(self, addr):
-        logger.debug("Launching connection " + addr)
+    def launch_terminal(self, conn):
+        logger.debug("Launching connection " + conn)
         shell = os.environ["SHELL"]
         home = expanduser("~")
 
-        cmd = self.terminal_cmd.replace("%SHELL", shell).replace("%CONN", addr)
+        cmd = self.terminal_cmd.replace("%SHELL", shell).replace("%CONN", conn)
 
         if self.terminal:
             # ipdb.set_trace()
@@ -71,7 +70,6 @@ class SshExtension(Extension):
 
 
 class ItemEnterEventListener(EventListener):
-
     def on_event(self, event, extension):
         data = event.get_data()
         extension.launch_terminal(data)
@@ -109,28 +107,25 @@ class KeywordQueryEventListener(EventListener):
         hosts.sort()
         if arg is not None:
             index = arg.find('@', 1)
-            if index <= 0:
-                return
-            query = arg[index + 1:len(arg) - 1]
-            cmd_arg = arg[0: index+1]
-            if query is not None and len(query) > 0:
-                # ipdb.set_trace()
-                hosts = filter(lambda x: query in x, hosts)
-            for host in hosts:
-                items.append(ExtensionResultItem(icon=icon,
-                                                 name=host,
-                                                 description="Connect to '{}' with SSH".format(host),
-                                                 on_enter=ExtensionCustomAction(cmd_arg + host,
-                                                                                keep_app_open=False)))
+            if index > 0:
+                query = arg[index + 1:len(arg)]
+                cmd_arg = arg[0: index + 1]
+                if query is not None and len(query) > 0:
+                    # ipdb.set_trace()
+                    hosts = filter(lambda x: query in x, hosts)
+                for host in hosts:
+                    items.append(self.my_extension_result_item(icon, host, host, cmd_arg + host))
                 # If there are no results, let the user connect to the specified server.
-            if len(items) <= 0:
-                items.append(ExtensionResultItem(icon=icon,
-                                                 name=arg,
-                                                 description="Connect to {} with SSH".format(arg),
-                                                 on_enter=ExtensionCustomAction(arg,
-                                                                                keep_app_open=False)))
-
+                if len(items) <= 0:
+                    items.append(self.my_extension_result_item(icon, arg, arg, arg))
         return RenderResultListAction(items)
+
+    def my_extension_result_item(self, icon, name, description, enter):
+        return ExtensionResultItem(icon=icon,
+                                   name=name,
+                                   description="Connect to '{}' with SSH".format(description),
+                                   on_enter=ExtensionCustomAction(enter,
+                                                                  keep_app_open=False))
 
 
 if __name__ == '__main__':
